@@ -26,7 +26,7 @@
  
  void loop() {
    int laser = digitalRead(PIN_LASER_RX);
-   Serial.print("Laser: ");if (laser == LOW) {
+   Serial.print("Laser: ");if (laser == HIGH) {
 Serial.println("BLOCKED (Base detected)");
 } else {
 Serial.println("CLEAR (Lid or no object)");
