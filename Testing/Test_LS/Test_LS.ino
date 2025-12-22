@@ -9,9 +9,9 @@
  * - Limit Sort: GPIO 33, Common to pin, NO to GND
  */
 
- #define PIN_LIMIT_X     36
- #define PIN_LIMIT_Y     39
- #define PIN_LIMIT_Z     34
+ #define PIN_LIMIT_X     33
+ #define PIN_LIMIT_Y     32
+ #define PIN_LIMIT_Z     4
  #define PIN_LIMIT_SORT  13
  
  void setup() {
