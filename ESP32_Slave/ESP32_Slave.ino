@@ -1,7 +1,7 @@
 //ESP32 Master Pin Definitions
 // SENSORS
-#define PIN_IR_FEEDER       12  // IR sensor at feeder
-#define PIN_IR_COLOR        14  // IR sensor for color
+#define PIN_IR_FEEDER       19 // IR sensor at feeder
+#define PIN_IR_COLOR        23  // IR sensor for color
 #define PIN_LASER_RX        32  // Laser receiver
 #define PIN_LIMIT_SORT      13  // Limit switch at sort position
 

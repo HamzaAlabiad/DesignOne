@@ -9,8 +9,8 @@
  * - Both GND → GND
  */
 
- #define PIN_IR_FEEDER  12
- #define PIN_IR_COLOR   14
+ #define PIN_IR_FEEDER  19
+ #define PIN_IR_COLOR   23
  
  void setup() {
    Serial.begin(115200);
@@ -39,7 +39,7 @@
      Serial.println("  → Object detected at feeder");
    }
    
-   if (color == HIGH) {
+   if (color == LOW) {
      Serial.println("  → WHITE object detected");
    } else {
      Serial.println("  → BLACK object detected (or no object)");
