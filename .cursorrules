@@ -1,0 +1,33 @@
+# Mechatronics Sorting & Assembly Project
+
+## Project Overview
+This is a 3-subsystem mechatronics project:
+1. Feeding subsystem (pneumatic cylinder controlled by relay)
+2. Sorting subsystem (laser + IR sensors for classification)
+3. 3-DOF Cartesian robot with vacuum gripper
+
+## Hardware
+- 2x ESP32 (dual-core)
+- 2-channel relay module (pneumatic control)
+- IR sensors (object detection + color classification)
+- Laser sensor (height classification)
+- 3x stepper motors (X, Y, Z axes)
+- 3x quadrature encoders
+- Vacuum pump (suction gripper)
+
+## Code Standards
+- Use FreeRTOS for all tasks
+- Core 0: ESP-NOW communication only
+- Core 1: All other tasks
+- Use Hungarian notation for pins (e.g., PIN_IR_POS1)
+- All sensor readings must be filtered (moving average)
+- Motor control uses cascaded PI-P controller (Week 10 lab)
+- ESP-NOW protocol for inter-ESP32 communication (Week 13 lab)
+
+## Development Phases
+Currently on: Phase X (update this as you progress)
+
+## Important Notes
+- Pneumatic cylinder needs 500ms to extend/retract
+- Encoder resolution: X pulses/mm (fill in after calibration)
+- Vacuum needs 300ms to establish suction
