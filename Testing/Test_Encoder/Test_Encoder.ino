@@ -18,13 +18,13 @@
  ESP32Encoder encoder;
  
  // Motor pins (to make encoder spin)
- #define PIN_ENA   13
- #define PIN_IN1   12
- #define PIN_IN2   14
+ #define PIN_ENA   23
+ #define PIN_IN1   22
+ #define PIN_IN2   21
  
  // Encoder pins
- #define PIN_ENC_A 27
- #define PIN_ENC_B 26
+ #define PIN_ENC_A 19
+ #define PIN_ENC_B 18
  
  void setup() {
    Serial.begin(115200);

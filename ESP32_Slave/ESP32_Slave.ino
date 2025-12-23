@@ -22,9 +22,9 @@
 #define PIN_LIMIT_X         33
 
 // STEPPER Y-AXIS
-#define PIN_STEP_Y          27
+#define PIN_STEP_Y          25
 #define PIN_DIR_Y           26
-#define PIN_EN_Y            25
+#define PIN_EN_Y            27
 #define PIN_LIMIT_Y         32
 
 // DC MOTOR Z-AXIS

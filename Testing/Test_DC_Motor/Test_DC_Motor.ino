@@ -5,16 +5,16 @@
  * WIRING:
  * - ESP32 Pin 13 → L298N ENA
  * - ESP32 Pin 12 → L298N IN1
- * - ESP32 Pin 14 → L298N IN2
+ * - ESP32 Pin 14 → L298N IN2  
  * - ESP32 GND → L298N GND (CRITICAL!)
  * - 12V Power (+) → L298N +12V
  * - 12V Power (-) → L298N GND
  * - Motor wires → OUT1, OUT2
  */
 
- #define PIN_ENA   13  // PWM speed control
- #define PIN_IN1   12  // Direction bit 1
- #define PIN_IN2   14  // Direction bit 2
+ #define PIN_ENA   23  // PWM speed control
+ #define PIN_IN1   22  // Direction bit 1
+ #define PIN_IN2   21  // Direction bit 2
  
  void setup() {
    Serial.begin(115200);
@@ -35,23 +35,23 @@
  
  void loop() {
    // ====== FORWARD (SLOW) ======
-   Serial.println("Forward at 30% speed...");
+   Serial.println("Forward at 100% speed...");
    digitalWrite(PIN_IN1, HIGH);
    digitalWrite(PIN_IN2, LOW);
-   analogWrite(PIN_ENA, 80);  // 80/255 = ~30%
-   delay(3000);
+   analogWrite(PIN_ENA, 255);  // 80/255 = ~30%
+   delay(500);
    
    // ====== STOP ======
    Serial.println("STOP");
    analogWrite(PIN_ENA, 0);
-   delay(2000);
+   delay(1000);
    
    // ====== BACKWARD (SLOW) ======
-   Serial.println("Backward at 30% speed...");
+   Serial.println("Backward at 100% speed...");
    digitalWrite(PIN_IN1, LOW);
    digitalWrite(PIN_IN2, HIGH);
-   analogWrite(PIN_ENA, 80);
-   delay(3000);
+   analogWrite(PIN_ENA, 255);
+   delay(500);
    
    // ====== STOP ======
    Serial.println("STOP");

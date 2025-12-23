@@ -10,9 +10,9 @@
  * - 12V Power → Driver VMOT/GND
  */
 
- #define PIN_STEP  19
- #define PIN_DIR   18
- #define PIN_EN    5
+ #define PIN_STEP  25
+ #define PIN_DIR   26
+ #define PIN_EN    27
  
  void setup() {
    Serial.begin(115200);
