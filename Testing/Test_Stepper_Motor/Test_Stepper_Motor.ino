@@ -1,81 +1,33 @@
-/*
- * Test: Stepper Motor (X or Y axis)
- * Expected: Motor rotates 200 steps forward, then 200 steps backward, repeat
- * 
- * WIRING:
- * - ESP32 Pin 19 → Driver STEP
- * - ESP32 Pin 18 → Driver DIR
- * - ESP32 Pin 5 → Driver EN
- * - ESP32 GND → Driver GND
- * - 12V Power → Driver VMOT/GND
- */
+#define STEP_PIN 26
+#define DIR_PIN 25
+#define ENABLE_PIN 27 // ENABLE is controlled by code
 
- #define PIN_STEP  25
- #define PIN_DIR   26
- #define PIN_EN    27
- 
- void setup() {
-   Serial.begin(115200);
-   Serial.println("=================================");
-   Serial.println("Stepper Motor Test");
-   Serial.println("=================================");
-   
-   pinMode(PIN_STEP, OUTPUT);
-   pinMode(PIN_DIR, OUTPUT);
-   pinMode(PIN_EN, OUTPUT);
-   
-   // Enable motor (active LOW)
-   digitalWrite(PIN_EN, LOW);
-   
-   Serial.println("Motor enabled. Starting test...");
-   delay(1000);
- }
- 
- void loop() {
-   // ====== MOVE FORWARD ======
-   Serial.println("Moving FORWARD (200 steps)...");
-   digitalWrite(PIN_DIR, HIGH);  // Set direction
-   
-   for(int i = 0; i < 200; i++) {
-     digitalWrite(PIN_STEP, HIGH);
-     delayMicroseconds(2000);  // Adjust if too fast/slow
-     digitalWrite(PIN_STEP, LOW);
-     delayMicroseconds(2000);
-   }
-   
-   Serial.println("Forward complete. Pausing...");
-   delay(1000);
-   
-   // ====== MOVE BACKWARD ======
-   Serial.println("Moving BACKWARD (200 steps)...");
-   digitalWrite(PIN_DIR, LOW);  // Reverse direction
-   
-   for(int i = 0; i < 200; i++) {
-     digitalWrite(PIN_STEP, HIGH);
-     delayMicroseconds(2000);
-     digitalWrite(PIN_STEP, LOW);
-     delayMicroseconds(2000);
-   }
-   
-   Serial.println("Backward complete. Pausing...");
-   delay(1000);
- }
- 
- /*
-  * TROUBLESHOOTING:
-  * 
-  * Motor doesn't move:
-  * 1. Check driver power LED (should be ON)
-  * 2. Verify 12V connected to driver
-  * 3. Check ESP32 GND connected to driver GND
-  * 4. Try changing EN to HIGH (some drivers are active HIGH)
-  * 5. Increase delayMicroseconds to 5000 (slower speed)
-  * 6. Swap motor wire pairs (try different coil combinations)
-  * 
-  * Motor vibrates but doesn't turn:
-  * - Increase delayMicroseconds (motor too fast)
-  * - Check motor current setting on driver (potentiometer)
-  * 
-  * Motor turns wrong direction:
-  * - Flip DIR signal (HIGH ↔ LOW)
-  */
+void setup() {
+  // Configure pins
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(ENABLE_PIN, OUTPUT);
+
+  // Driver initialization
+  digitalWrite(ENABLE_PIN, HIGH); // Disable driver during setup (safe)
+  delay(10);                      // Allow signals to settle
+  digitalWrite(ENABLE_PIN, LOW);  // ENABLE driver (LOW = ON)
+
+  // Set initial direction
+  digitalWrite(DIR_PIN, HIGH);
+}
+
+void loop() {
+  // Move motor forward
+  for (int i = 0; i < 1600; i++) {
+    digitalWrite(STEP_PIN, HIGH);
+    delayMicroseconds(800); // Slow, safe pulse
+    digitalWrite(STEP_PIN, LOW);
+    delayMicroseconds(800);
+  }
+
+  delay(1000);
+
+  // Reverse direction
+  digitalWrite(DIR_PIN, !digitalRead(DIR_PIN));
+}

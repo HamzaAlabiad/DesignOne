@@ -12,9 +12,9 @@
  * - Motor wires → OUT1, OUT2
  */
 
- #define PIN_ENA   23  // PWM speed control
+ #define PIN_ENA   21  // PWM speed control
  #define PIN_IN1   22  // Direction bit 1
- #define PIN_IN2   21  // Direction bit 2
+ #define PIN_IN2   23  // Direction bit 2
  
  void setup() {
    Serial.begin(115200);
