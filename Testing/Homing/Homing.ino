@@ -5,7 +5,7 @@
  *
  * Fixes:
  * - Reduces the "big debounce" (actually slow backoff time)
- * - Adds 2-stage homing (fast then slow) for better switch behavior
+ * - Uses single-speed homing: stop when switch triggers and hold (no backoff/release)
  *
  * If limit logic is reversed, change:
  *   LIMIT_PRESSED_IS_HIGH (1 <-> 0)
@@ -51,22 +51,30 @@
 #define Z_BACKOFF_MS 150
 #define Z_HOME_TIMEOUT_MS 10000
 
-// Step timing (same for both; if you must tune visually, adjust X vs Y)
-#define X_STEP_HIGH_US_FAST 500
-#define X_STEP_LOW_US_FAST 500
-#define X_STEP_HIGH_US_SLOW 1000
-#define X_STEP_LOW_US_SLOW 1000
+// Step timing (per-axis): set X and Y independently so you can match speeds
+// Lower microsecond values -> faster stepping (shorter pulse period).
+// Pulse period = STEP_HIGH_US + STEP_LOW_US (microseconds). Frequency = 1 / period.
+// Typical practical range to try: 100 .. 2000 µs (100 = fast, 2000 = slow).
+// - Very low values (<=100) can be too fast for some drivers/motors and may skip steps.
+// - Very high values (>2000) will be visually slow.
+// To change speed: edit these constants, or implement runtime control that updates
+// the *_US values from Serial commands (example idea shown below).
+// Example runtime control (comment):
+//   // char cmd = read from Serial; if cmd == 'X' set STEP_HIGH_US_X = value;
+//   // Keep values in the recommended range and test incrementally.
 
-#define Y_STEP_HIGH_US_FAST 500
-#define Y_STEP_LOW_US_FAST 500
-#define Y_STEP_HIGH_US_SLOW 1000
-#define Y_STEP_LOW_US_SLOW 1000
+// Suggested starting values to match perceived speeds (adjust to taste):
+#define STEP_HIGH_US_X 100
+#define STEP_LOW_US_X 100
+
+#define STEP_HIGH_US_Y 1000
+#define STEP_LOW_US_Y 1000
 
 // Homing limits
 #define STEPPER_HOME_MAX_STEPS 40000
 
-// Backoff: smaller + faster (fixes your “huge debounce” feeling)
-#define STEPPER_BACKOFF_STEPS 80
+// Z holding pwm to keep the limit switch pressed after homing
+#define Z_HOLD_PWM 80
 
 // -------------------------
 // Helpers
@@ -132,23 +140,65 @@ void stepOnceTimed(int stepPin, int highUs, int lowUs) {
 }
 
 void stepperEnable(int enPin) {
-  // Your driver behavior: HIGH disable, LOW enable
-  digitalWrite(enPin, HIGH);
-  delay(10);
-  digitalWrite(enPin, LOW);
+  // For this driver: LOW == enabled. Keep it enabled so the motor holds position
+  digitalWrite(enPin, LOW); // enable driver and keep it enabled
+  delay(5);
+}
+
+// (Note) We intentionally do not disable the driver after homing so the
+// stepper continues to hold its position and keeps the switch pressed.
+
+// --- New: simple, single-speed stepper homing (no backoff/release) ---
+void homeStepperSimple(
+  const char* name,
+  int stepPin,
+  int dirPin,
+  int enPin,
+  int limitPin,
+  bool homeDirHigh,
+  int highUs,
+  int lowUs
+) {
+  Serial.printf("Homing %s...\n", name);
+
+  // Enable driver and keep it enabled so motor will hold after stopping
+  stepperEnable(enPin);
+
+  // If already pressed, consider it homed and keep holding
+  if (limitPressed(limitPin)) {
+    Serial.printf("%s switch already pressed -> considered homed (holding)\n", name);
+    return;
+  }
+
+  // Drive toward the switch
+  digitalWrite(dirPin, homeDirHigh ? HIGH : LOW);
+  delayMicroseconds(50);
+
+  long steps = 0;
+  while (!limitPressed(limitPin) && steps < STEPPER_HOME_MAX_STEPS) {
+    stepOnceTimed(stepPin, highUs, lowUs);
+    steps++;
+    if ((steps % 800) == 0) delay(0);
+  }
+
+  if (!limitPressed(limitPin)) {
+    Serial.printf("%s HOME TIMEOUT!\n", name);
+    return;
+  }
+
+  // Stop stepping; driver remains enabled, so the motor holds position and
+  // helps keep the switch pressed (prevents bouncy release).
+  Serial.printf("%s homed (holding switch).\n\n", name);
 }
 
 void homeZ() {
   Serial.println("Homing Z...");
 
-  // Back off if already pressed
+  // If switch already pressed, consider Z homed and keep a small holding force
   if (limitPressed(PIN_LIMIT_Z)) {
-    Serial.println("Z switch already pressed -> backing off...");
-    zDown(Z_HOME_PWM);
-    unsigned long t0 = millis();
-    while (limitPressed(PIN_LIMIT_Z) && (millis() - t0 < 2000)) delay(1);
-    zStop();
-    delay(100);
+    Serial.println("Z switch already pressed -> considered homed (holding)");
+    zUp(Z_HOLD_PWM); // small hold to keep switch pressed
+    return;
   }
 
   Serial.println("Z moving up to switch...");
@@ -157,111 +207,17 @@ void homeZ() {
   while (!limitPressed(PIN_LIMIT_Z)) {
     if (millis() - start > Z_HOME_TIMEOUT_MS) {
       Serial.println("Z HOME TIMEOUT!");
-      break;
+      zStop();
+      return;
     }
     delay(1);
   }
-  zStop();
-  delay(50);
 
-  // Small backoff (faster)
-  zDown(Z_HOME_PWM);
-  delay(Z_BACKOFF_MS);
-  zStop();
+  // Keep a small holding torque against the switch (do not back off)
+  zUp(Z_HOLD_PWM);
 
-  Serial.println("Z homed.\n");
-}
-
-void stepperBackoff(
-  int stepPin,
-  int dirPin,
-  bool homeDirHigh,
-  int backoffSteps,
-  int highUs,
-  int lowUs
-) {
-  // Move away from switch
-  digitalWrite(dirPin, homeDirHigh ? LOW : HIGH);
-  delayMicroseconds(50);
-
-  for (int i = 0; i < backoffSteps; i++) {
-    stepOnceTimed(stepPin, highUs, lowUs);
-    if ((i % 400) == 0) delay(0);
-  }
-}
-
-void homeStepper2Stage(
-  const char* name,
-  int stepPin,
-  int dirPin,
-  int enPin,
-  int limitPin,
-  bool homeDirHigh,
-  int fastHighUs,
-  int fastLowUs,
-  int slowHighUs,
-  int slowLowUs
-) {
-  Serial.printf("Homing %s...\n", name);
-
-  stepperEnable(enPin);
-
-  // If already pressed, back off first
-  if (limitPressed(limitPin)) {
-    Serial.printf("%s switch already pressed -> backing off...\n", name);
-    stepperBackoff(stepPin, dirPin, homeDirHigh, STEPPER_BACKOFF_STEPS * 2,
-                   fastHighUs, fastLowUs);
-  }
-
-  // -------- Stage 1: FAST approach --------
-  Serial.printf("%s fast approach...\n", name);
-  digitalWrite(dirPin, homeDirHigh ? HIGH : LOW);
-  delayMicroseconds(50);
-
-  long steps = 0;
-  while (!limitPressed(limitPin) && steps < STEPPER_HOME_MAX_STEPS) {
-    stepOnceTimed(stepPin, fastHighUs, fastLowUs);
-    steps++;
-    if ((steps % 800) == 0) delay(0);
-  }
-
-  if (!limitPressed(limitPin)) {
-    Serial.printf("%s HOME TIMEOUT (fast stage)!\n", name);
-    return;
-  }
-
-  // Quick settle check (not “big debounce”, just stability)
-  delay(5);
-
-  // Back off a little (fast)
-  stepperBackoff(stepPin, dirPin, homeDirHigh, STEPPER_BACKOFF_STEPS,
-                 fastHighUs, fastLowUs);
-
-  // -------- Stage 2: SLOW approach --------
-  Serial.printf("%s slow approach...\n", name);
-  digitalWrite(dirPin, homeDirHigh ? HIGH : LOW);
-  delayMicroseconds(50);
-
-  steps = 0;
-  while (!limitPressed(limitPin) && steps < STEPPER_HOME_MAX_STEPS) {
-    stepOnceTimed(stepPin, slowHighUs, slowLowUs);
-    steps++;
-    if ((steps % 800) == 0) delay(0);
-  }
-
-  if (!limitPressed(limitPin)) {
-    Serial.printf("%s HOME TIMEOUT (slow stage)!\n", name);
-    return;
-  }
-
-  delay(5);
-
-  // Final backoff to release switch (fast)
-  stepperBackoff(stepPin, dirPin, homeDirHigh, STEPPER_BACKOFF_STEPS,
-                 fastHighUs, fastLowUs);
-
-  Serial.printf("%s homed.\n\n", name);
-}
+  Serial.println("Z homed (holding).\n");
+} 
 
 void setup() {
   Serial.begin(115200);
@@ -283,12 +239,14 @@ void setup() {
   pinMode(PIN_DIR_X, OUTPUT);
   pinMode(PIN_EN_X, OUTPUT);
   digitalWrite(PIN_STEP_X, LOW);
+  stepperEnable(PIN_EN_X); // keep enabled to hold position after homing
 
   // Y stepper
   pinMode(PIN_STEP_Y, OUTPUT);
   pinMode(PIN_DIR_Y, OUTPUT);
   pinMode(PIN_EN_Y, OUTPUT);
   digitalWrite(PIN_STEP_Y, LOW);
+  stepperEnable(PIN_EN_Y); // keep enabled to hold position after homing
 
   Serial.println("Initial limit states:");
   Serial.printf("X=%d  Y=%d  Z=%d\n",
@@ -300,13 +258,11 @@ void setup() {
 
   homeZ();
 
-  homeStepper2Stage("X", PIN_STEP_X, PIN_DIR_X, PIN_EN_X, PIN_LIMIT_X,
-                    X_HOME_DIR_HIGH, X_STEP_HIGH_US_FAST, X_STEP_LOW_US_FAST,
-                    X_STEP_HIGH_US_SLOW, X_STEP_LOW_US_SLOW);
+  homeStepperSimple("X", PIN_STEP_X, PIN_DIR_X, PIN_EN_X, PIN_LIMIT_X,
+                    X_HOME_DIR_HIGH, STEP_HIGH_US_X, STEP_LOW_US_X);
 
-  homeStepper2Stage("Y", PIN_STEP_Y, PIN_DIR_Y, PIN_EN_Y, PIN_LIMIT_Y,
-                    Y_HOME_DIR_HIGH, Y_STEP_HIGH_US_FAST, Y_STEP_LOW_US_FAST,
-                    Y_STEP_HIGH_US_SLOW, Y_STEP_LOW_US_SLOW);
+  homeStepperSimple("Y", PIN_STEP_Y, PIN_DIR_Y, PIN_EN_Y, PIN_LIMIT_Y,
+                    Y_HOME_DIR_HIGH, STEP_HIGH_US_Y, STEP_LOW_US_Y);
 
   Serial.println("ALL AXES HOMED.");
 }
