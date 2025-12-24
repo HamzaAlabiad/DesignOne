@@ -1,6 +1,6 @@
 #include <ESP32Encoder.h>
-#define encoderPinA 18  // Replace with your actual pins
-#define encoderPinB 19 
+#define encoderPinA 19  // Replace with your actual pins
+#define encoderPinB 18 
 ESP32Encoder encoder;
 void setup() {
   Serial.begin(115200);
